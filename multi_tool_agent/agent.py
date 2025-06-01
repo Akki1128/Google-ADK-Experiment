@@ -9,44 +9,52 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 load_dotenv()
-OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+WEATHERAPI_API_KEY = os.getenv("WEATHERAPI_API_KEY")
 
 def get_current_weather_api(city: str) -> dict:
-    
-    if not OPENWEATHER_API_KEY:
+    # CHANGE: Use the new API key variable
+    if not WEATHERAPI_API_KEY:
         return {
             "status": "error",
-            "error_message": "OpenWeatherMap API key is not configured.",
+            "error_message": "WeatherAPI.com API key is not configured.",
         }
 
-    base_url = "https://api.openweathermap.org/data/2.5/weather"
+    # CHANGE: Update the base URL for WeatherAPI.com
+    # This is for current weather, you can check their docs for forecast or other endpoints
+    base_url = "http://api.weatherapi.com/v1/current.json"
     params = {
+        "key": WEATHERAPI_API_KEY, # CHANGE: Use 'key' for WeatherAPI.com
         "q": city,
-        "appid": OPENWEATHER_API_KEY,
-        "units": "metric", 
     }
 
     try:
         response = requests.get(base_url, params=params)
-        response.raise_for_status() 
+        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
         weather_data = response.json()
 
-        if weather_data.get("cod") == 200:
-            main = weather_data.get("main", {})
-            weather_desc = weather_data.get("weather", [{}])[0].get("description", "N/A")
-            temp = main.get("temp", "N/A")
-            feels_like = main.get("feels_like", "N/A")
-            humidity = main.get("humidity", "N/A")
+        # CHANGE: Adapt parsing to WeatherAPI.com's JSON structure
+        # WeatherAPI.com structure: {'location': {}, 'current': {}}
+        current_data = weather_data.get("current", {})
+        location_data = weather_data.get("location", {})
+
+        if response.status_code == 200: # Explicitly check status code
+            temp_c = current_data.get("temp_c", "N/A")
+            feels_like_c = current_data.get("feelslike_c", "N/A")
+            humidity = current_data.get("humidity", "N/A")
+            weather_condition = current_data.get("condition", {}).get("text", "N/A")
+            city_name = location_data.get("name", city) # Use their reported city name
 
             report = (
-                f"The current weather in {city} is {weather_desc}. "
-                f"Temperature: {temp}°C (feels like {feels_like}°C). Humidity: {humidity}%."
+                f"The current weather in {city_name} is {weather_condition}. "
+                f"Temperature: {temp_c}°C (feels like {feels_like_c}°C). Humidity: {humidity}%."
             )
             return {"status": "success", "report": report}
         else:
+            # WeatherAPI.com errors typically have an 'error' object
+            error_message = weather_data.get("error", {}).get("message", "Unknown error")
             return {
                 "status": "error",
-                "error_message": f"Could not retrieve weather for '{city}'. Error: {weather_data.get('message', 'Unknown error')}",
+                "error_message": f"Could not retrieve weather for '{city}'. Error: {error_message}",
             }
     except requests.exceptions.RequestException as e:
         return {"status": "error", "error_message": f"Network or API error: {e}"}
