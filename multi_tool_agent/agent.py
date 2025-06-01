@@ -8,8 +8,6 @@ from google.adk.runners import Runner
 #from google.adk.models.lite_llm import LiteLlm 
 from google.adk.sessions import InMemorySessionService
 
-
-
 load_dotenv()
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
