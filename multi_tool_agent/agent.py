@@ -1,10 +1,14 @@
 import os
-import datetime
 import requests
+from typing import Optional
+from google.genai import types 
 from dotenv import load_dotenv
-from zoneinfo import ZoneInfo
 from google.adk.agents import Agent
-from google.adk.tools import Tool 
+from google.adk.runners import Runner
+#from google.adk.models.lite_llm import LiteLlm 
+from google.adk.sessions import InMemorySessionService
+
+
 
 load_dotenv()
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -51,94 +55,108 @@ def get_current_weather_api(city: str) -> dict:
     except Exception as e:
         return {"status": "error", "error_message": f"An unexpected error occurred: {e}"}
 
-def get_current_time(city: str) -> dict:
+# def get_current_time(city: str) -> dict:
     
-    timezone_map = {
-        "new york": "America/New_York",
-        "london": "Europe/London",
-        "tokyo": "Asia/Tokyo",
-        "milpitas": "America/Los_Angeles", 
-        "san francisco": "America/Los_Angeles",
-        "los angeles": "America/Los_Angeles",
-        "paris": "Europe/Paris",
-    }
-    city_lower = city.lower()
+#     timezone_map = {
+#         "new york": "America/New_York",
+#         "london": "Europe/London",
+#         "tokyo": "Asia/Tokyo",
+#         "milpitas": "America/Los_Angeles", 
+#         "san francisco": "America/Los_Angeles",
+#         "los angeles": "America/Los_Angeles",
+#         "paris": "Europe/Paris",
+#     }
+#     city_lower = city.lower()
 
-    if city_lower not in timezone_map:
-        return {
-            "status": "error",
-            "error_message": f"Sorry, I don't have timezone information for {city}. Try New York, London, or Tokyo.",
-        }
+#     if city_lower not in timezone_map:
+#         return {
+#             "status": "error",
+#             "error_message": f"Sorry, I don't have timezone information for {city}. Try New York, London, or Tokyo.",
+#         }
 
-    tz_identifier = timezone_map[city_lower]
-    try:
-        tz = ZoneInfo(tz_identifier)
-        now = datetime.datetime.now(tz)
-        report = f'The current time in {city} is {now.strftime("%Y-%m-%d %H:%M:%S %Z%z")}'
-        return {"status": "success", "report": report}
-    except Exception as e:
-        return {"status": "error", "error_message": f"Error getting time for {city}: {e}"}
+#     tz_identifier = timezone_map[city_lower]
+#     try:
+#         tz = ZoneInfo(tz_identifier)
+#         now = datetime.datetime.now(tz)
+#         report = f'The current time in {city} is {now.strftime("%Y-%m-%d %H:%M:%S %Z%z")}'
+#         return {"status": "success", "report": report}
+#     except Exception as e:
+#         return {"status": "error", "error_message": f"Error getting time for {city}: {e}"}
+
+def say_hello(name: Optional[str] = None) -> str: 
+    """Provides a simple greeting. If a name is provided, it will be used.
+
+    Args:
+        name (str, optional): The name of the person to greet. Defaults to a generic greeting if not provided.
+
+    Returns:
+        str: A friendly greeting message.
+    """
+    if name:
+        greeting = f"Hello, {name}!"
+    else:
+        greeting = "Hello there!" # Default greeting if name is None or not explicitly passed
+    return greeting
+
+def say_goodbye() -> str:
+    """Provides a simple farewell message to conclude the conversation."""
+    return "Goodbye! Have a great day."
+
+print("Greeting and Farewell tools defined.")
 
 
-weather_time_agent = Agent(
-    name="WeatherAndTimeAgent",
-    model="gemini-1.5-flash", 
-    description=(
-        "An agent that provides current weather reports and current time for specified cities. "
-        "It uses external tools for this purpose."
-    ),
-    instruction=(
-        "You are a helpful Weather and Time Assistant. "
-        "Your sole purpose is to answer questions about the current weather and time in cities. "
-        "Always use the provided `get_current_weather_api` and `get_current_time` tools to fetch information. "
-        "If a city is not supported by a tool, state that fact clearly. "
-        "If asked about anything other than weather or time, tell the user that you are specialized in weather and time."
-    ),
-    tools=[get_current_weather_api, get_current_time], 
-)
+# --- Greeting Agent ---
+greeting_agent = None
+try:
+    greeting_agent = Agent(
+        # Using a potentially different/cheaper model for a simple task
+        model = "gemini-1.5-flash",
+        # model=LiteLlm(model=MODEL_GPT_4O), # If you would like to experiment with other models 
+        name="greeting_agent",
+        instruction="You are the Greeting Agent. Your ONLY task is to provide a friendly greeting to the user. "
+                    "Use the 'say_hello' tool to generate the greeting. "
+                    "If the user provides their name, make sure to pass it to the tool. "
+                    "Do not engage in any other conversation or tasks.",
+        description="Handles simple greetings and hellos using the 'say_hello' tool.", # Crucial for delegation
+        tools=[say_hello],
+    )
+    print(f"Agent '{greeting_agent.name}' created using model '{greeting_agent.model}'.")
+except Exception as e:
+    print(f"Could not create Greeting agent. Check API Key ({greeting_agent.model}). Error: {e}")
 
-greeting_agent = Agent(
-    name="GreetingAgent",
-    model="gemini-1.5-flash",
-    description="An agent that provides friendly greetings and welcomes users.",
-    instruction=(
-        "You are a polite and friendly Greeting Agent. "
-        "Your only task is to respond to greetings like 'hello', 'hi', 'hey', 'good morning', etc. "
-        "Respond with a warm greeting and ask how you can assist them with travel-related queries. "
-        "Do not try to answer complex questions or use tools. "
-        "Example responses: 'Hello there! How can I assist you?', "
-        "'Hi! I'm your assistant. How can I help you?'"
-    ),
-)
-
-farewell_agent = Agent(
-    name="FarewellAgent",
-    model="gemini-1.5-flash",
-    description="An agent that politely says goodbye and ends conversations.",
-    instruction=(
-        "You are a polite Farewell Agent. "
-        "Your only task is to respond to farewells like 'bye', 'goodbye', 'see you', 'thanks for your help', 'exit', 'quit'. "
-        "Respond with a warm and friendly goodbye. "
-        "Example responses: 'Goodbye! Have a wonderful day!'"
-    ),
-)
-
+# --- Farewell Agent ---
+farewell_agent = None
+try:
+    farewell_agent = Agent(
+        # Can use the same or a different model
+        model = "gemini-1.5-flash",
+        # model=LiteLlm(model=MODEL_GPT_4O), # If you would like to experiment with other models
+        name="farewell_agent",
+        instruction="You are the Farewell Agent. Your ONLY task is to provide a polite goodbye message. "
+                    "Use the 'say_goodbye' tool when the user indicates they are leaving or ending the conversation "
+                    "(e.g., using words like 'bye', 'goodbye', 'thanks bye', 'see you'). "
+                    "Do not perform any other actions.",
+        description="Handles simple farewells and goodbyes using the 'say_goodbye' tool.", # Crucial for delegation
+        tools=[say_goodbye],
+    )
+    print(f"Agent '{farewell_agent.name}' created using model '{farewell_agent.model}'.")
+except Exception as e:
+    print(f"Could not create Farewell agent. Check API Key ({farewell_agent.model}). Error: {e}")
+    
+    
 root_agent = Agent(
-    name="TeamOrchestrator",
+    name="TeamOrchestrator", 
     model="gemini-1.5-flash",
-    description=(
-        "A routing agent that intelligently delegates user requests to specialized sub-agents: "
-        "WeatherAndTimeAgent, GreetingAgent, and FarewellAgent. "
-        "It ensures the correct agent handles the query."
-    ),
-    instruction=(
-        "You are a smart assistant that routes user requests to the most appropriate specialist agent. "
-        "Your goal is to accurately determine the user's intent and invoke the correct sub-agent. "
-        "1. If the user asks about the weather or current time in a city, route to `WeatherAndTimeAgent`. "
-        "2. If the user expresses a greeting (e.g., 'hi', 'hello', 'good morning'), route to `GreetingAgent`. "
-        "3. If the user expresses a farewell (e.g., 'bye', 'goodbye', 'exit', 'quit', 'thanks for your help'), route to `FarewellAgent`. "
-        "4. For any other request that doesn't fit the above, try to answer politely that you are a specialized router and can only connect them to the weather/time, greeting, or farewell agents. Avoid using the tools for anything else."
-        "Always try to route the query to one of the specific agents defined in your tools."
-    ),
-    tools=[weather_time_agent, greeting_agent, farewell_agent],
+    description="The main coordinator agent. Handles weather requests and delegates greetings/farewells to specialists.",
+    instruction="You are the main Weather Agent coordinating a team. Your primary responsibility is to provide weather information. "
+                "Use the 'get_weather' tool ONLY for specific weather requests (e.g., 'weather in London'). "
+                "You have specialized sub-agents: "
+                "1. 'greeting_agent': Handles simple greetings like 'Hi', 'Hello'. Delegate to it for these. "
+                "2. 'farewell_agent': Handles simple farewells like 'Bye', 'See you'. Delegate to it for these. "
+                "Analyze the user's query. If it's a greeting, delegate to 'greeting_agent'. If it's a farewell, delegate to 'farewell_agent'. "
+                "If it's a weather request, handle it yourself using 'get_weather'. "
+                "For anything else, respond appropriately or state you cannot handle it.",
+    tools=[get_current_weather_api], # Root agent still needs the weather tool for its core task
+    # Key change: Link the sub-agents here!
+    sub_agents=[greeting_agent, farewell_agent]
 )
