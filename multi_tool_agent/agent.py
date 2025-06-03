@@ -12,7 +12,6 @@ load_dotenv()
 WEATHERAPI_API_KEY = os.getenv("WEATHERAPI_API_KEY")
 
 def get_current_weather_api(city: str) -> dict:
-    # CHANGE: Use the new API key variable
     if not WEATHERAPI_API_KEY:
         return {
             "status": "error",
@@ -69,7 +68,7 @@ def say_hello(name: Optional[str] = None) -> str:
     if name:
         greeting = f"Hello, {name}!"
     else:
-        greeting = "Hello there!" # Default greeting if name is None or not explicitly passed
+        greeting = "Hello there!" 
     return greeting
 
 def say_goodbye() -> str:
@@ -83,9 +82,7 @@ print("Greeting and Farewell tools defined.")
 greeting_agent = None
 try:
     greeting_agent = Agent(
-        # Using a potentially different/cheaper model for a simple task
         model = "gemini-1.5-flash",
-        # model=LiteLlm(model=MODEL_GPT_4O), # If you would like to experiment with other models 
         name="greeting_agent",
         instruction="You are the Greeting Agent. Your ONLY task is to provide a friendly greeting to the user. "
                     "Use the 'say_hello' tool to generate the greeting. "
@@ -102,9 +99,7 @@ except Exception as e:
 farewell_agent = None
 try:
     farewell_agent = Agent(
-        # Can use the same or a different model
         model = "gemini-1.5-flash",
-        # model=LiteLlm(model=MODEL_GPT_4O), # If you would like to experiment with other models
         name="farewell_agent",
         instruction="You are the Farewell Agent. Your ONLY task is to provide a polite goodbye message. "
                     "Use the 'say_goodbye' tool when the user indicates they are leaving or ending the conversation "
@@ -130,7 +125,6 @@ root_agent = Agent(
                 "Analyze the user's query. If it's a greeting, delegate to 'greeting_agent'. If it's a farewell, delegate to 'farewell_agent'. "
                 "If it's a weather request, handle it yourself using 'get_weather'. "
                 "For anything else, respond appropriately or state you cannot handle it.",
-    tools=[get_current_weather_api], # Root agent still needs the weather tool for its core task
-    # Key change: Link the sub-agents here!
+    tools=[get_current_weather_api], 
     sub_agents=[greeting_agent, farewell_agent]
 )
