@@ -19,30 +19,26 @@ def get_current_weather_api(city: str) -> dict:
             "error_message": "WeatherAPI.com API key is not configured.",
         }
 
-    # CHANGE: Update the base URL for WeatherAPI.com
-    # This is for current weather, you can check their docs for forecast or other endpoints
     base_url = "http://api.weatherapi.com/v1/current.json"
     params = {
-        "key": WEATHERAPI_API_KEY, # CHANGE: Use 'key' for WeatherAPI.com
+        "key": WEATHERAPI_API_KEY, 
         "q": city,
     }
 
     try:
         response = requests.get(base_url, params=params)
-        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status() 
         weather_data = response.json()
 
-        # CHANGE: Adapt parsing to WeatherAPI.com's JSON structure
-        # WeatherAPI.com structure: {'location': {}, 'current': {}}
         current_data = weather_data.get("current", {})
         location_data = weather_data.get("location", {})
 
-        if response.status_code == 200: # Explicitly check status code
+        if response.status_code == 200: 
             temp_c = current_data.get("temp_c", "N/A")
             feels_like_c = current_data.get("feelslike_c", "N/A")
             humidity = current_data.get("humidity", "N/A")
             weather_condition = current_data.get("condition", {}).get("text", "N/A")
-            city_name = location_data.get("name", city) # Use their reported city name
+            city_name = location_data.get("name", city) 
 
             report = (
                 f"The current weather in {city_name} is {weather_condition}. "
@@ -50,7 +46,6 @@ def get_current_weather_api(city: str) -> dict:
             )
             return {"status": "success", "report": report}
         else:
-            # WeatherAPI.com errors typically have an 'error' object
             error_message = weather_data.get("error", {}).get("message", "Unknown error")
             return {
                 "status": "error",
@@ -61,33 +56,6 @@ def get_current_weather_api(city: str) -> dict:
     except Exception as e:
         return {"status": "error", "error_message": f"An unexpected error occurred: {e}"}
 
-# def get_current_time(city: str) -> dict:
-    
-#     timezone_map = {
-#         "new york": "America/New_York",
-#         "london": "Europe/London",
-#         "tokyo": "Asia/Tokyo",
-#         "milpitas": "America/Los_Angeles", 
-#         "san francisco": "America/Los_Angeles",
-#         "los angeles": "America/Los_Angeles",
-#         "paris": "Europe/Paris",
-#     }
-#     city_lower = city.lower()
-
-#     if city_lower not in timezone_map:
-#         return {
-#             "status": "error",
-#             "error_message": f"Sorry, I don't have timezone information for {city}. Try New York, London, or Tokyo.",
-#         }
-
-#     tz_identifier = timezone_map[city_lower]
-#     try:
-#         tz = ZoneInfo(tz_identifier)
-#         now = datetime.datetime.now(tz)
-#         report = f'The current time in {city} is {now.strftime("%Y-%m-%d %H:%M:%S %Z%z")}'
-#         return {"status": "success", "report": report}
-#     except Exception as e:
-#         return {"status": "error", "error_message": f"Error getting time for {city}: {e}"}
 
 def say_hello(name: Optional[str] = None) -> str: 
     """Provides a simple greeting. If a name is provided, it will be used.
